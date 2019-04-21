@@ -32,10 +32,11 @@ func (m Cache) visited(url string) bool{
 
 // Crawl uses fetcher to recursively crawl
 // pages starting with url, to a maximum of depth.
-func Crawl(url string, depth int, fetcher Fetcher, m Cache) {
+func Crawl(url string, depth int, fetcher Fetcher, m Cache, g *sync.WaitGroup) {
 	// TODO: Fetch URLs in parallel.
 	// TODO: Don't fetch the same URL twice.
 	// This implementation doesn't do either:
+	defer g.Done()
 	if depth <= 0 {
 		return
 	}
@@ -52,14 +53,18 @@ func Crawl(url string, depth int, fetcher Fetcher, m Cache) {
 	
 	fmt.Printf("found: %s %q\n", url, body)
 	for _, u := range urls {
-		Crawl(u, depth-1, fetcher,m)
+		Crawl(u, depth-1, fetcher,m,g)
+		g.Add(1)
 	}
 	return
 }
 
 func main() {
 	m := Cache{c: make(map[string]int)}
-	Crawl("https://golang.org/", 4, fetcher, m)
+	g := &sync.WaitGroup{}
+	g.Add(1)
+	go Crawl("https://golang.org/", 4, fetcher, m,g)
+	g.Wait()
 }
 
 // fakeFetcher is Fetcher that returns canned results.
